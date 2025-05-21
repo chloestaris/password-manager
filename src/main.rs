@@ -3,16 +3,20 @@ use actix_web::{middleware, web, App, HttpRequest, HttpResponse, HttpServer};
 use serde::{Deserialize, Serialize};
 use sqlx::sqlite::SqlitePool;
 use std::env;
+use utoipa::OpenApi;
+use utoipa_swagger_ui::SwaggerUi;
 
 mod auth;
 mod crypto;
 mod db;
 mod error;
+mod api_docs;
 
 use auth::{LoginCredentials, User, verify_token};
 use error::ApiError;
+use api_docs::ApiDoc;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 struct Credential {
     id: Option<i64>,
     website: String,
@@ -20,18 +24,42 @@ struct Credential {
     password: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 struct CredentialResponse {
     id: i64,
     website: String,
     username: String,
 }
 
+/// Register a new user
+#[utoipa::path(
+    post,
+    path = "/auth/register",
+    tag = "auth",
+    request_body = User,
+    responses(
+        (status = 201, description = "User created successfully", body = inline(serde_json::Value)),
+        (status = 400, description = "Invalid input"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 async fn register(pool: web::Data<SqlitePool>, user: web::Json<User>) -> Result<HttpResponse, ApiError> {
     let user_id = auth::create_user(&pool, &user).await?;
     Ok(HttpResponse::Created().json(serde_json::json!({ "id": user_id })))
 }
 
+/// Login with username and password
+#[utoipa::path(
+    post,
+    path = "/auth/login",
+    tag = "auth",
+    request_body = LoginCredentials,
+    responses(
+        (status = 200, description = "Login successful", body = inline(serde_json::Value)),
+        (status = 401, description = "Invalid credentials"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 async fn login(pool: web::Data<SqlitePool>, creds: web::Json<LoginCredentials>) -> Result<HttpResponse, ApiError> {
     let token = auth::login(&pool, &creds).await?;
     Ok(HttpResponse::Ok().json(serde_json::json!({ "token": token })))
@@ -51,6 +79,22 @@ fn get_user_id(req: &HttpRequest) -> Result<i64, ApiError> {
     verify_token(token)
 }
 
+/// Create a new credential
+#[utoipa::path(
+    post,
+    path = "/credentials",
+    tag = "credentials",
+    request_body = Credential,
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 201, description = "Credential created successfully", body = inline(serde_json::Value)),
+        (status = 401, description = "Unauthorized"),
+        (status = 400, description = "Invalid input"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 async fn create_credential(
     req: HttpRequest,
     pool: web::Data<SqlitePool>,
@@ -72,6 +116,20 @@ async fn create_credential(
     Ok(HttpResponse::Created().json(serde_json::json!({ "id": id })))
 }
 
+/// Get all credentials for the authenticated user
+#[utoipa::path(
+    get,
+    path = "/credentials",
+    tag = "credentials",
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "List of credentials", body = Vec<CredentialResponse>),
+        (status = 401, description = "Unauthorized"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 async fn get_credentials(req: HttpRequest, pool: web::Data<SqlitePool>) -> Result<HttpResponse, ApiError> {
     let user_id = get_user_id(&req)?;
     let credentials = db::get_credentials(&pool, user_id).await?;
@@ -88,6 +146,24 @@ async fn get_credentials(req: HttpRequest, pool: web::Data<SqlitePool>) -> Resul
     Ok(HttpResponse::Ok().json(responses))
 }
 
+/// Get a specific credential by ID
+#[utoipa::path(
+    get,
+    path = "/credentials/{id}",
+    tag = "credentials",
+    params(
+        ("id" = i64, Path, description = "Credential ID")
+    ),
+    security(
+        ("bearer_auth" = [])
+    ),
+    responses(
+        (status = 200, description = "Credential found", body = CredentialResponse),
+        (status = 401, description = "Unauthorized"),
+        (status = 404, description = "Credential not found"),
+        (status = 500, description = "Internal server error")
+    )
+)]
 async fn get_credential_by_id(
     req: HttpRequest,
     pool: web::Data<SqlitePool>,
@@ -144,6 +220,11 @@ async fn main() -> std::io::Result<()> {
             .wrap(cors)
             .wrap(middleware::Logger::default())
             .app_data(web::Data::new(pool.clone()))
+            // Swagger UI
+            .service(
+                SwaggerUi::new("/swagger-ui/{_:.*}")
+                    .url("/api-docs/openapi.json", ApiDoc::openapi()),
+            )
             // Public routes
             .route("/auth/register", web::post().to(register))
             .route("/auth/login", web::post().to(login))

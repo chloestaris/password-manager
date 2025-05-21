@@ -6,16 +6,24 @@ use sqlx::SqlitePool;
 use std::env;
 use time::{Duration, OffsetDateTime};
 
-#[derive(Debug, Serialize, Deserialize)]
+/// User registration information
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct User {
+    /// User ID (auto-generated)
+    #[schema(nullable = true)]
     pub id: Option<i64>,
+    /// User's email address
     pub email: String,
+    /// User's password (will be hashed before storage)
     pub password: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+/// Login credentials
+#[derive(Debug, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct LoginCredentials {
+    /// User's email address
     pub email: String,
+    /// User's password
     pub password: String,
 }
 

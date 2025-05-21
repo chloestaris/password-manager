@@ -1,0 +1,41 @@
+# Rust specific
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE specific
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Database files
+*.db
+*.db-*
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+logs/
+
+# Dependencies
+vendor/
+
+# Build output
+dist/
+build/
+
+# Debug files
+*.pdb
+
+# Environment files
+.env.local
+.env.*.local 

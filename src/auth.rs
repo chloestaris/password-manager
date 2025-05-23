@@ -3,7 +3,6 @@ use bcrypt::{hash, verify, DEFAULT_COST};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
-use std::env;
 use time::{Duration, OffsetDateTime};
 
 /// User registration information

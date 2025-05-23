@@ -30,7 +30,7 @@ impl utoipa::Modify for SecurityAddon {
             "bearer_auth",
             utoipa::openapi::security::SecurityScheme::Http(
                 utoipa::openapi::security::HttpBuilder::new()
-                    .scheme("bearer")
+                    .scheme(utoipa::openapi::security::HttpAuthScheme::Bearer)
                     .bearer_format("JWT")
                     .build(),
             ),

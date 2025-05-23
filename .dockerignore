@@ -2,4 +2,9 @@ target/
 .env
 .git/
 .gitignore
+*.db
+*.db-*
+data/
+Dockerfile
+docker-compose.yml
 README.md 

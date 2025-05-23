@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    platform: linux/arm64
+    user: "1000:1000"  # Match the appuser UID:GID
+    ports:
+      - "8080:8080"
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/data
+    environment:
+      - RUST_LOG=info
+      - DATABASE_URL=sqlite:///app/data/password_manager.db
+      - JWT_SECRET=your_jwt_secret_here  # Change this in production
+      - ENCRYPTION_KEY=12345678901234567890123456789012  # 32 bytes key
+    restart: unless-stopped 
